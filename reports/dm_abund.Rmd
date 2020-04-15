@@ -1,0 +1,112 @@
+---
+title: "DM covariates, lags"
+author: "Glenda Yenni"
+output: github_document
+---
+  
+  Patterns in DM abundance related to precipitation, temperature, and ndvi
+
+
+```{r global options, include = FALSE}
+knitr::opts_chunk$set(echo=FALSE, include = TRUE, warning=FALSE, message=FALSE)
+
+library(dplyr)
+library(ggplot2)
+source("../R/plotting.R")
+```
+
+```{r get data}
+ndvi_dat <- portalr::ndvi(level = "monthly", fill = FALSE) %>%
+  mutate(year = lubridate::year(date), month = lubridate::month(date)) 
+
+weath_dat <- portalr::weather(level = "monthly", fill = FALSE) %>%
+  select(year, month, mintemp, maxtemp, meantemp, precipitation) %>%
+  left_join(ndvi_dat, by = c("year", "month"))
+
+rodent_dat <- portalr::abundance(time = "date") %>%
+  select(censusdate, DM) %>%
+  mutate(censusdate = lubridate::ymd(censusdate)) %>%
+  mutate(year = lubridate::year(censusdate), month = lubridate::month(censusdate)) %>%
+  left_join(weath_dat, by = c("year", "month"))
+
+```
+
+## The time series
+Monthly, because the ndvi we have is monthly
+```{r time series}
+
+theme_set(theme_minimal())
+p1 <- ggplot(data = ndvi_dat, aes(x = date)) + 
+  geom_line(aes(y = meantemp, color = "meantemp")) +
+  geom_line(aes(y = mintemp, color = "mintemp")) +
+  geom_line(aes(y = maxtemp, color = "maxtemp")) +
+  scale_color_manual(name="",
+                     values = c("maxtemp"="red","meantemp"="pink","mintemp"="blue")) +
+  labs(x = '', y = 'Air Temp (C)') +
+  theme(legend.position = "top") 
+
+p2 <- ggplot(data = ndvi_dat, aes(x = date)) + 
+  geom_line( aes(y = ndvi), color = "green") +
+  xlab('')
+
+p3 <- ggplot(data = ndvi_dat, aes(x = date)) + 
+  geom_line(aes(y = precipitation), color = "lightblue") +
+  xlab('date') + ylab('Precip (mm)')
+
+cowplot::plot_grid(p1,p2,p3,nrow=3)
+
+```
+
+## NDVI and Temperature
+```{r ndvi vs temp}
+
+plot_temp_ndvi(ndvi_dat, lag = 0, method = "loess") 
+plot_temp_ndvi(ndvi_dat, lag = 1, method = "loess")
+plot_temp_ndvi(ndvi_dat, lag = 3, method = "loess")
+plot_temp_ndvi(ndvi_dat, lag = 6, method = "loess")
+plot_temp_ndvi(ndvi_dat, lag = 12, method = "loess")
+```
+
+## NDVI and Precipitation
+```{r ndvi vs precip}
+
+plot_precip_ndvi(ndvi_dat, lag = 0, method = "loess")
+plot_precip_ndvi(ndvi_dat, lag = 1, method = "loess")
+plot_precip_ndvi(ndvi_dat, lag = 3, method = "loess")
+plot_precip_ndvi(ndvi_dat, lag = 6, method = "loess")
+plot_precip_ndvi(ndvi_dat, lag = 12, method = "loess")
+
+```
+
+## NDVI, Mean Temperature, and Precipitation
+```{r ndvi vs temp and precip}
+
+plot_glm_ndvi(ndvi_dat, lag = 0)
+plot_glm_ndvi(ndvi_dat, lag = 1)
+plot_glm_ndvi(ndvi_dat, lag = 3)
+plot_glm_ndvi(ndvi_dat, lag = 6)
+plot_glm_ndvi(ndvi_dat, lag = 12)
+
+```
+
+## Forecast NDVI and Temperature
+Currently we only have NDVI through 2013. Below are comparisons between the NDVI prediction via autocorrelation (w/ seasonality) and the predictions from the best model above (`ndvi~lag(meantemp,3)*lag(precipitation,3)`) (darkgreen)
+```{r forcast ndvi vs temp and precip}
+
+fit=glm(ndvi~lag(meantemp,3)*lag(precipitation,3),data=ndvi_dat)
+preds = predict(fit,newdata = ndvi_dat_filled[391:459,])
+
+ndvi_dat_preds <- ndvi_dat_filled %>%
+  mutate(pred = c(rep(NA, 390), preds))
+
+theme_set(theme_minimal())
+ggplot(data = ndvi_dat_preds, aes(x = date)) + 
+  geom_line(aes(y = ndvi), color = "green") +
+  geom_line(aes(y = pred), color = "darkgreen") 
+
+ggplot(data = ndvi_dat_preds) + 
+  geom_point(aes(x = ndvi, y = pred), color = "green") +
+  geom_abline(intercept=0, slope=1) +
+  labs(x = "autocorrelation predicted", y = "temp*ppt predicted")
+
+```

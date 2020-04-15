@@ -35,7 +35,7 @@ ggplot(data = ndvi_data) +
 #' @param lag number of timesteps to lag the precipitation data
 #' @param method smoothing method to use (from ggplot2::stat_smooth)
 #' 
-#' @example plot_precip_ndvi(1, "lm")
+#' @example plot_precip_ndvi(ndvi_data, 1, "lm")
 #' 
 #'
 #'
@@ -56,7 +56,7 @@ plot_precip_ndvi = function(ndvi_data, lag = 1, method = "lm") {
 #' @param ndvi_data dataframe of ndvi and temp data
 #' @param lag number of timesteps to lag the precipitation data
 #' 
-#' @example plot_glm_ndvi(1, "lm")
+#' @example plot_glm_ndvi(ndvi_data, 1, "lm")
 #' 
 #'
 #'
@@ -69,6 +69,29 @@ plot_glm_ndvi = function(ndvi_data, lag = 1) {
   theme_set(theme_minimal())
   ggplot(ndvi_data, aes(x = lag(meantemp, lag), y = ndvi, 
                        size = lag(precipitation, lag), color = lag(precipitation, lag))) +
+    geom_point() +
+    labs(x = paste("Mean Temp (C), lag =",lag))
+  
+}
+
+#' Plot relationship between temp, precipitation and ndvi
+#' 
+#' @param rodent_data dataframe of ndvi and temp data
+#' @param lag number of timesteps to lag the precipitation data
+#' 
+#' @example plot_glm_rodents(rodent_data, 1, "lm")
+#' 
+#'
+#'
+
+plot_glm_rodents = function(rodent_data, lag = 1) {
+  
+  fit=glm(DM~lag(meantemp,lag)*lag(precipitation,lag),data=ndvi_data)
+  print(summary(fit))
+  
+  theme_set(theme_minimal())
+  ggplot(rodent_data, aes(x = lag(meantemp, lag), y = ndvi, 
+                        size = lag(precipitation, lag), color = lag(precipitation, lag))) +
     geom_point() +
     labs(x = paste("Mean Temp (C), lag =",lag))
   
