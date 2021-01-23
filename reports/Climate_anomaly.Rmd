@@ -1,0 +1,131 @@
+---
+title: "Climate_Anomaly"
+author: "Glenda Yenni"
+date: "1/22/2021"
+output: github_document
+fig_width: 10 
+fig_height: 4 
+---
+### Climate anomalies using PRISM 30-year mean data (1981 - 2010)
+
+```{r global options, include = FALSE}
+knitr::opts_chunk$set(echo=FALSE, include = TRUE, warning=FALSE, message=FALSE,
+                      fig.width=12, fig.height=4)
+
+`%>%` <- magrittr::`%>%`
+library(ggplot2)
+normals <- portalr::load_datafile("Weather/PRISM_normals.csv", na.strings = c(""), path = "~") %>%
+    dplyr::filter(month != "Annual") %>%
+    dplyr::mutate(month = match(.data$month, month.name)) %>%
+    dplyr::select(-c("tdmean", "vpdmin", "vpdmax"))
+
+weather <- portalr::weather("monthly", fill = TRUE, path = "~") %>%
+    dplyr::full_join(normals, by="month") %>%
+    dplyr::mutate(date = format(lubridate::parse_date_time(paste(month, year, sep=" "),
+                                                           orders = c("m/Y")), "%m-%Y")) %>%
+    dplyr::mutate(date = as.Date(paste("01",date,sep="-"), format="%d-%m-%Y"))
+
+precip <- weather %>%
+    dplyr::select(date, precipitation, ppt, anomaly_ppt, cool_precip, warm_precip) %>%
+    dplyr::mutate(col = ifelse(anomaly_ppt >= 1, "blue", "red"),
+                  ystart = 1)
+
+mintemp <- weather %>%
+    dplyr::select(date, mintemp, tmin, anomaly_mint) %>%
+    dplyr::mutate(col = ifelse(anomaly_mint >= 0, "red", "blue"),
+                  ystart = 0)
+
+maxtemp <- weather %>%
+    dplyr::select(date, maxtemp, tmax, anomaly_maxt) %>%
+    dplyr::mutate(col = ifelse(anomaly_maxt >= 0, "red", "blue"),
+                  ystart = 0)
+
+meantemp <- weather %>%
+    dplyr::select(date, meantemp, tmean, anomaly_meant) %>%
+    dplyr::mutate(col = ifelse(anomaly_meant >= 0, "red", "blue"),
+                  ystart = 0)
+```
+### Precipitation
+
+```{r precipitation}
+
+theme_set(theme_minimal())
+ggplot(data = precip, mapping = aes(date, anomaly_ppt)) +
+    geom_segment(mapping = aes(x=date, y=ystart, xend=date, yend=anomaly_ppt, color=col),
+                 , show.legend = FALSE) +
+    scale_x_date(name = 'date', date_breaks = '5 years',
+                 date_labels = '%Y') +
+    scale_color_manual(values = c("blue"="steelblue","red"="darkred")) +
+    ylab("Proportion of average ppt")
+    
+```
+
+### Mean Temperature
+
+```{r meantemp}
+
+ggplot(data = meantemp, mapping = aes(date, anomaly_meant)) +
+    geom_segment(mapping = aes(x=date, y=ystart, xend=date, yend=anomaly_meant, color=col),
+                 , show.legend = FALSE) +
+    scale_x_date(name = 'date', date_breaks = '5 years',
+                 date_labels = '%Y') +
+    scale_color_manual(values = c("blue"="steelblue","red"="darkred")) +
+    ylab("Difference from mean monthly temperature C")
+
+```
+
+### Maximum Temperature
+
+```{r maxtemp}
+
+ggplot(data = maxtemp, mapping = aes(date, anomaly_maxt)) +
+    geom_segment(mapping = aes(x=date, y=ystart, xend=date, yend=anomaly_maxt, color=col),
+                 , show.legend = FALSE) +
+    scale_x_date(name = 'date', date_breaks = '5 years',
+                 date_labels = '%Y') +
+    scale_color_manual(values = c("blue"="steelblue","red"="darkred")) +
+    ylab("Difference from mean maximum temperature C")
+
+```
+
+### Minimum Temperature
+
+```{r minttemp}
+
+ggplot(data = mintemp, mapping = aes(date, anomaly_mint)) +
+    geom_segment(mapping = aes(x=date, y=ystart, xend=date, yend=anomaly_mint, color=col),
+                 , show.legend = FALSE) +
+    scale_x_date(name = 'date', date_breaks = '5 years',
+                 date_labels = '%Y') +
+    scale_color_manual(values = c("blue"="steelblue","red"="darkred")) +
+    ylab("Difference from mean minimum temperature C")
+
+```
+
+### With Raw Temperature Time Series Data
+
+```{r raw_meantemp}
+
+ggplot(data = meantemp, mapping = aes(date, tmean)) +
+    geom_line() +
+    geom_segment(mapping = aes(x=date, y=tmean, xend=date, yend=meantemp, color=col),
+                 , show.legend = FALSE) +
+    scale_x_date(name = 'date', date_breaks = '5 years',
+                 date_labels = '%Y') +
+    scale_color_manual(values = c("blue"="steelblue","red"="darkred")) +
+    ylab("Difference from mean monthly temperature C")
+
+```
+
+```{r raw_maxtemp}
+
+ggplot(data = maxtemp, mapping = aes(date, tmax)) +
+    geom_line() +
+    geom_segment(mapping = aes(x=date, y=tmax, xend=date, yend=maxtemp, color=col),
+                 , show.legend = FALSE) +
+    scale_x_date(name = 'date', date_breaks = '5 years',
+                 date_labels = '%Y') +
+    scale_color_manual(values = c("blue"="steelblue","red"="darkred")) +
+    ylab("Difference from mean maximum temperature C")
+
+```
